@@ -1,0 +1,121 @@
+{% extends "webapp/base.html" %}
+
+{% block title %}Edit Injuries{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6 bg-gray-900 shadow-md rounded-lg mt-10 text-white">
+
+    <!-- Fantasy Draft Back Button -->
+    <div class="mb-6 flex justify-between items-center">
+        <a href="{% url 'webapp:fantasy_draft' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded">
+            ← Back to Fantasy Draft
+        </a>
+    </div>
+
+    <!-- Injury Edit Form (Save Changes button + search bar + table) -->
+    <form method="post" id="injuryForm" novalidate>
+        {% csrf_token %}
+        <!-- Save Changes button -->
+        <div class="mb-4 text-center">
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded">
+                Save Changes
+            </button>
+        </div>
+
+        <!-- Search bar below the save button -->
+        <div class="mb-6">
+            <input
+              type="text"
+              name="q"
+              id="playerSearch"
+              value="{{ search_query|default_if_none:'' }}"
+              placeholder="Search player by name..."
+              class="w-full p-2 rounded border border-gray-700 text-black"
+              oninput="debouncedSubmit()"
+              autocomplete="off"
+              spellcheck="false"
+            />
+        </div>
+
+        <!-- Injury Table -->
+        <table class="min-w-full bg-gray-800 shadow rounded-lg border border-gray-700">
+            <thead class="bg-indigo-700 text-white">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Player</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Estimated Duration</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for player in players %}
+                <tr class="{% if player.injury_status == 'Injured' %}bg-red-700{% else %}bg-gray-900 hover:bg-gray-800{% endif %}">
+                    <td class="px-6 py-4 text-white font-semibold">
+                        {{ player.name }}
+                        {% if player.injury_status == "Injured" %}
+                            <span class="text-yellow-300 font-bold">(Injured)</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <select name="status_{{ player.id }}" class="bg-white text-black rounded px-2 py-1">
+                            <option value="Healthy" {% if player.injury_status == "Healthy" %}selected{% endif %}>Healthy</option>
+                            <option value="Injured" {% if player.injury_status == "Injured" %}selected{% endif %}>Injured</option>
+                        </select>
+                    </td>
+                    <td class="px-6 py-4">
+                        <input type="text" name="duration_{{ player.id }}"
+                               value="{{ player.injury_duration }}"
+                               placeholder="e.g. 2-3 weeks"
+                               class="bg-gray-200 text-black rounded px-2 py-1 w-full">
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center px-6 py-4 text-white">No players found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </form>
+</div>
+
+<script>
+let debounceTimeout = null;
+
+function debouncedSubmit() {
+  clearTimeout(debounceTimeout);
+  debounceTimeout = setTimeout(() => {
+    // Submit the form with GET method but injuryForm is POST,
+    // So we must change this to actually submit a GET form separately.
+    // Instead, we will create a small workaround:
+
+    // Create and submit a separate GET form with the query:
+    const query = document.getElementById('playerSearch').value;
+    const url = new URL(window.location.href);
+    url.searchParams.set('q', query);
+    window.location.href = url.toString();
+  }, 500); // 500ms debounce delay
+}
+
+// Keep search input focused and cursor at end after page reload
+window.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('playerSearch');
+  if (searchInput) {
+    searchInput.focus();
+    const val = searchInput.value;
+    searchInput.value = '';
+    searchInput.value = val;
+  }
+});
+</script>
+
+{% endblock %}
+
+
+
+
+
+
+
+
+
+

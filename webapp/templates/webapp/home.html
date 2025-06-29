@@ -1,0 +1,49 @@
+{% extends "webapp/base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div 
+    class="min-h-screen flex items-center justify-center text-white"
+    style="background: linear-gradient(135deg, #1e3a8a, #9333ea); position: relative; overflow: hidden;"
+>
+    <!-- subtle circle pattern overlay -->
+    <div 
+        class="absolute inset-0 pointer-events-none" 
+        style="background-image: radial-gradient(rgba(255 255 255 / 0.1) 1px, transparent 1px);
+               background-size: 50px 50px; z-index: 0;">
+    </div>
+
+    <div class="relative max-w-4xl w-full text-center p-8 z-10">
+        <h1 class="text-4xl md:text-5xl font-extrabold mb-10 text-blue-300">Welcome to Fantasy Central</h1>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <a href="{% url 'webapp:fantasy_draft' %}" 
+               class="bg-blue-600 hover:bg-blue-700 transition duration-300 py-4 px-6 rounded-2xl text-lg font-semibold shadow-lg">
+                Fantasy Draft
+            </a>
+            <a href="{% url 'webapp:nba_data' %}?view=standings" 
+               class="bg-blue-600 hover:bg-blue-700 transition duration-300 py-4 px-6 rounded-2xl text-lg font-semibold shadow-lg">
+                NBA Standings
+            </a>
+            <a href="{% url 'webapp:nba_data' %}?view=game_results" 
+               class="bg-blue-600 hover:bg-blue-700 transition duration-300 py-4 px-6 rounded-2xl text-lg font-semibold shadow-lg">
+                Game Results
+            </a>
+            <a href="{% url 'webapp:nba_data' %}?view=player_stats" 
+               class="bg-blue-600 hover:bg-blue-700 transition duration-300 py-4 px-6 rounded-2xl text-lg font-semibold shadow-lg">
+                Player Stats
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+
+
+
+
+
+
+

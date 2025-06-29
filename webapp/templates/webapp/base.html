@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}My Web App{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'webapp/styles.css' %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col">
+
+<header class="bg-indigo-800 p-4 flex justify-between items-center shadow-md">
+  <div class="logo flex items-center space-x-3">
+    <img
+      src="{% static 'webapp/basketball.png' %}"
+      alt="Basketball Logo"
+      class="h-10 w-10 object-contain"
+      onerror="this.style.display='none'"
+    />
+    <span class="text-xl font-bold select-none">NBA Fantasy</span>
+  </div>
+  <div class="user-info flex items-center space-x-4 text-white">
+    {% if request.user.is_authenticated %}
+      <span class="select-none">Welcome, {{ request.user.username }}</span>
+
+      <a
+        href="{% url 'webapp:add_friends' %}"
+        title="Add Friends"
+        class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-semibold select-none inline-block"
+      >
+        Add Friends
+      </a>
+
+      <!-- Notifications bell and popup -->
+      <div id="notifications-container" class="relative">
+        <button id="notifications-btn" title="Notifications"
+                class="relative focus:outline-none hover:opacity-80">
+          <svg xmlns="http://www.w3.org/2000/svg"
+               class="h-8 w-8 text-white" fill="none"
+               viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11
+                     a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341
+                     C7.67 6.165 6 8.388 6 11v3.159
+                     c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1
+                     a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <span id="notifications-badge"
+                class="absolute top-0 right-0 inline-flex items-center justify-center
+                       px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600
+                       rounded-full hidden">0</span>
+        </button>
+
+        <div id="notifications-popup"
+             class="hidden absolute right-0 mt-2 w-80 bg-gray-800 rounded shadow-lg z-50
+                    max-h-96 overflow-auto">
+          <div class="p-4 text-white font-semibold border-b border-gray-700">
+            Friend Requests
+          </div>
+          <ul id="friend-requests-list" class="divide-y divide-gray-700">
+            <li class="p-4 text-gray-400">Loading...</li>
+          </ul>
+          <div id="notifications-close-btn"
+               class="p-2 text-center text-gray-400 text-sm cursor-pointer hover:bg-gray-700">
+            Close
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile icon -->
+      <a
+        href="{% url 'users:profile_self' %}"
+        title="Your Profile"
+        class="block hover:opacity-80 relative"
+      >
+        <img
+          src="{% static 'webapp/profile-icon.png' %}"
+          alt="Profile"
+          class="w-8 h-8 rounded-full border-2 border-white"
+        />
+      </a>
+
+      <form action="{% url 'users:logout' %}" method="post" class="inline ml-4">
+        {% csrf_token %}
+        <button
+          type="submit"
+          class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm font-semibold"
+        >
+          Logout
+        </button>
+      </form>
+    {% else %}
+      <a href="{% url 'users:login' %}" class="hover:underline text-indigo-200">Login</a>
+      <a href="{% url 'users:register' %}" class="hover:underline text-indigo-200">Register</a>
+    {% endif %}
+  </div>
+</header>
+
+<main class="flex-grow container mx-auto px-4 py-6">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="bg-indigo-800 p-4 text-center text-indigo-200">
+  <p>&copy; SMCC 2025 HSC Enterprise Computing</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn       = document.getElementById('notifications-btn');
+  const popup     = document.getElementById('notifications-popup');
+  const badge     = document.getElementById('notifications-badge');
+  const closeBtn  = document.getElementById('notifications-close-btn');
+  const list      = document.getElementById('friend-requests-list');
+
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    popup.classList.toggle('hidden');
+    if (!popup.classList.contains('hidden')) {
+      fetchFriendRequests();
+    }
+  });
+
+  closeBtn.addEventListener('click', () => {
+    popup.classList.add('hidden');
+  });
+
+  document.addEventListener('click', e => {
+    if (!btn.contains(e.target) && !popup.contains(e.target)) {
+      popup.classList.add('hidden');
+    }
+  });
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      document.cookie.split(';').forEach(cookie => {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        }
+      });
+    }
+    return cookieValue;
+  }
+
+  function fetchFriendRequests() {
+    fetch('{% url "webapp:notifications_requests" %}', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject(res))
+      .then(data => {
+        list.innerHTML = '';
+        const reqs = data.requests || [];
+        if (reqs.length === 0) {
+          badge.classList.add('hidden');
+          list.innerHTML = '<li class="p-4 text-gray-400">No new friend requests.</li>';
+          return;
+        }
+        badge.textContent = reqs.length;
+        badge.classList.remove('hidden');
+
+        reqs.forEach(r => {
+          const li = document.createElement('li');
+          li.className = 'p-4 flex justify-between items-center';
+
+          const span = document.createElement('span');
+          span.textContent = r.sender + ' ' + r.verb;
+
+          const btnWrap = document.createElement('div');
+          btnWrap.className = 'flex space-x-2';
+
+          const ok = document.createElement('button');
+          ok.textContent = 'Accept';
+          ok.className = 'bg-green-600 hover:bg-green-700 px-2 py-1 rounded text-sm font-semibold';
+          ok.addEventListener('click', () => respondToRequest(r.accept_url));
+
+          const no = document.createElement('button');
+          no.textContent = 'Decline';
+          no.className = 'bg-red-600 hover:bg-red-700 px-2 py-1 rounded text-sm font-semibold';
+          no.addEventListener('click', () => respondToRequest(r.decline_url));
+
+          btnWrap.append(ok, no);
+          li.append(span, btnWrap);
+          list.appendChild(li);
+        });
+      })
+      .catch(() => {
+        list.innerHTML = '<li class="p-4 text-red-500">Failed to load requests.</li>';
+      });
+  }
+
+  function respondToRequest(url) {
+    fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        fetchFriendRequests();
+      } else {
+        alert(data.error || 'Failed to update request.');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Error responding to request.');
+    });
+  }
+});
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

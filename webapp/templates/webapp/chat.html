@@ -1,0 +1,41 @@
+{% extends "webapp/base.html" %}
+{% block title %}Chat - {{ room_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 bg-gray-900 p-6 rounded shadow-md text-white flex flex-col h-[600px]">
+    <h1 class="text-2xl font-bold mb-4">Chat Room: {{ room_name }}</h1>
+
+    <div id="chat-messages" class="flex-grow overflow-y-auto mb-4 p-2 border border-gray-700 rounded bg-gray-800">
+        <!-- Messages will be appended here -->
+    </div>
+
+    <form id="chat-form" class="flex">
+        <input id="chat-input" type="text" placeholder="Type a message..." class="flex-grow p-2 rounded text-black" autocomplete="off" />
+        <button type="submit" class="ml-2 bg-indigo-700 hover:bg-indigo-600 text-white px-4 rounded font-semibold">Send</button>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+
+    // Placeholder for sending messages — replace with real-time logic (e.g. Django Channels)
+    chatForm.onsubmit = (e) => {
+        e.preventDefault();
+        const msg = chatInput.value.trim();
+        if (!msg) return;
+        // Append message locally
+        const p = document.createElement('p');
+        p.textContent = "You: " + msg;
+        p.className = "mb-2";
+        chatMessages.appendChild(p);
+        chatInput.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // TODO: Send message to backend & broadcast
+    };
+});
+</script>
+{% endblock %}

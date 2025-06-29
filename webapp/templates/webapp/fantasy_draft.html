@@ -1,0 +1,197 @@
+{% extends "webapp/base.html" %}
+
+{% block title %}Fantasy Draft Rankings{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto p-6 bg-gray-900 shadow-md rounded-lg mt-10 text-white">
+
+    <!-- Home & Edit Injuries Buttons -->
+    <div class="mb-6 flex justify-between items-center">
+        <a href="{% url 'webapp:home' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded">
+            ← Back to Home
+        </a>
+
+        {% if request.user.is_superuser %}
+        <a href="{% url 'webapp:edit_injuries' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded">
+            Edit Injuries
+        </a>
+        {% endif %}
+    </div>
+
+    <h1 class="text-4xl font-extrabold text-center text-indigo-400 mb-8">Fantasy Draft Rankings</h1>
+
+    <form action="{% url 'webapp:reset_rankings' %}" method="post" class="text-center mb-6" onsubmit="sessionStorage.setItem('toastMessage', 'Rankings reset')">
+        {% csrf_token %}
+        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded">
+            Reset Rankings
+        </button>
+    </form>
+
+    <!-- Search Form -->
+    <form method="get" class="mb-4" id="searchForm" autocomplete="off">
+        <input
+          type="text"
+          name="q"
+          id="playerSearch"
+          value="{{ search_query|default_if_none:'' }}"
+          placeholder="Search player by name..."
+          class="w-full p-2 rounded border border-gray-700 text-black"
+          oninput="debouncedSubmit()"
+          autocomplete="off"
+          spellcheck="false"
+        />
+    </form>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-gray-800 shadow rounded-lg border border-gray-700">
+            <thead class="bg-indigo-700 text-white">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Rank</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">PPG</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">RPG</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">APG</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">BPG</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">SPG</th>
+                    <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">Action</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for player in ranked_players %}
+                <tr class="{% if player.injury_status == 'Injured' %}bg-red-700{% else %}bg-gray-900 hover:bg-gray-800{% endif %}">
+                    <td class="px-6 py-4 text-white">{{ player.rank }}</td>
+                    <td class="px-6 py-4 text-white font-semibold">
+                        {{ player.name }}
+                        {% if player.injury_status == "Injured" %}
+                            <span class="text-yellow-300 font-bold">(Injured)</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-white">{{ player.ppg }}</td>
+                    <td class="px-6 py-4 text-white">{{ player.rpg }}</td>
+                    <td class="px-6 py-4 text-white">{{ player.apg }}</td>
+                    <td class="px-6 py-4 text-white">{{ player.bpg }}</td>
+                    <td class="px-6 py-4 text-white">{{ player.spg }}</td>
+                    <td class="px-6 py-4 text-center">
+                        <button
+                            class="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-2 rounded"
+                            onclick="removePlayer('{{ player.id }}', '{{ player.name }}', event)">
+                            Remove
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center px-6 py-4 text-white">No players found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 inset-x-0 mx-auto w-fit bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg text-sm hidden z-50">
+</div>
+
+<style>
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(20px); }
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+.animate-fade-out {
+  animation: fade-out 0.4s ease-in forwards;
+}
+</style>
+
+<script>
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  toast.classList.add("animate-fade-in");
+
+  setTimeout(() => {
+    toast.classList.add("animate-fade-out");
+    setTimeout(() => {
+      toast.classList.add("hidden");
+      toast.classList.remove("animate-fade-in", "animate-fade-out");
+    }, 500);
+  }, 2500);
+}
+
+async function removePlayer(playerId, playerName, event) {
+  event.preventDefault();
+  if (!playerId) return alert('Invalid player ID.');
+
+  const id = parseInt(playerId, 10);
+  if (isNaN(id)) return alert('Invalid player ID.');
+
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  try {
+    sessionStorage.setItem('scrollY', window.scrollY);
+    sessionStorage.setItem('toastMessage', `${playerName} successfully removed`);
+
+    const response = await fetch(`/webapp/fantasy-draft/remove/${id}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.ok) {
+      location.reload();
+    } else {
+      alert('Failed to remove player.');
+    }
+  } catch (error) {
+    alert('Error removing player: ' + error);
+  }
+}
+
+let debounceTimeout = null;
+function debouncedSubmit() {
+  clearTimeout(debounceTimeout);
+  debounceTimeout = setTimeout(() => {
+    document.getElementById('searchForm').submit();
+  }, 500);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const searchInput = document.getElementById('playerSearch');
+  if (searchInput) {
+    searchInput.focus();
+    const val = searchInput.value;
+    searchInput.value = '';
+    searchInput.value = val;
+  }
+
+  const savedScrollY = sessionStorage.getItem('scrollY');
+  if (savedScrollY !== null) {
+    window.scrollTo(0, parseInt(savedScrollY));
+    sessionStorage.removeItem('scrollY');
+  }
+
+  const toastMessage = sessionStorage.getItem('toastMessage');
+  if (toastMessage) {
+    showToast(toastMessage);
+    sessionStorage.removeItem('toastMessage');
+  }
+});
+</script>
+{% endblock %}
+
+
+
+
+
+
+

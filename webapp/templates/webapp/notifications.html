@@ -1,0 +1,117 @@
+{% extends "webapp/base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 bg-gray-900 p-6 rounded shadow-md text-white">
+  <h1 class="text-2xl font-bold mb-4">Notifications</h1>
+  <ul id="notifications-list" class="space-y-4">
+    <!-- AJAX-loaded notifications will appear here -->
+    <li id="loading-placeholder" class="text-gray-400">Loading notifications…</li>
+  </ul>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const list = document.getElementById('notifications-list');
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      for (let c of document.cookie.split(';')) {
+        c = c.trim();
+        if (c.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(c.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  function sendResponse(id, action) {
+    // Build the URL from your named URL pattern:
+    const url = `{% url "webapp:respond_to_request" 0 "accept" %}`
+                  .replace('/0/', `/${id}/`)
+                  .replace('/accept/', `/${action}/`);
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Remove that notification from the list
+        const btn = document.querySelector(`[data-request-id="${id}"][data-action="${action}"]`);
+        btn.closest('li').remove();
+        if (!list.querySelector('li')) {
+          list.innerHTML = '<li class="text-gray-400">No notifications.</li>';
+        }
+      } else {
+        alert(data.error || 'Failed to respond.');
+      }
+    });
+  }
+
+  function bindButtons() {
+    list.querySelectorAll('.btn-accept').forEach(btn =>
+      btn.addEventListener('click', () =>
+        sendResponse(btn.dataset.requestId, 'accept')
+      )
+    );
+    list.querySelectorAll('.btn-decline').forEach(btn =>
+      btn.addEventListener('click', () =>
+        sendResponse(btn.dataset.requestId, 'decline')
+      )
+    );
+  }
+
+  function fetchRequests() {
+    fetch('{% url "webapp:notifications_requests" %}')
+      .then(r => r.json())
+      .then(data => {
+        list.innerHTML = '';
+        if (!data.requests.length) {
+          list.innerHTML = '<li class="text-gray-400">No notifications.</li>';
+          return;
+        }
+        data.requests.forEach(req => {
+          const li = document.createElement('li');
+          li.className = 'mb-4 flex justify-between items-center border-b border-gray-700 pb-2';
+          li.innerHTML = `
+            <span>${req.sender} ${req.verb}</span>
+            <div>
+              <button data-request-id="${req.id}" data-action="accept"
+                class="btn-accept bg-green-600 hover:bg-green-700 px-3 py-1 rounded mr-2 text-sm font-semibold">
+                Accept
+              </button>
+              <button data-request-id="${req.id}" data-action="decline"
+                class="btn-decline bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm font-semibold">
+                Decline
+              </button>
+            </div>
+          `;
+          list.appendChild(li);
+        });
+        bindButtons();
+      })
+      .catch(() => {
+        list.innerHTML = '<li class="text-gray-400">Failed to load requests.</li>';
+      });
+  }
+
+  fetchRequests();
+});
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
